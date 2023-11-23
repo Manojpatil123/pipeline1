@@ -59,8 +59,6 @@ import torch
 from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 import runpod
 from langchain.llms import HuggingFaceTextGenInference
-
-
 from flask import Flask,jsonify,request,send_file,render_template,Response,stream_with_context
 from PyPDF2 import PdfReader
 import os
@@ -168,6 +166,9 @@ model_kwargs = {'device': 'cuda'}
 #intialize emebding model
 embeddings1 = HuggingFaceEmbeddings(model_name='sentence-transformers/all-mpnet-base-v2',model_kwargs=model_kwargs)
 
+model_whisper = whisper.load_model('tiny.en')
+
+'''
 #speach to text model
 model_id = "openai/whisper-large-v3"
 # Run on GPU with FP16
@@ -187,7 +188,7 @@ pipe = pipeline(
     return_timestamps=True,
     torch_dtype=torch_dtype,
     device=device,
-)
+)'''
 
 device = 0 if torch.cuda.is_available() else -1 
 #emotion text
@@ -208,7 +209,7 @@ connection_args={"uri": "https://in03-6bcf3c6994e6be0.api.gcp-us-west1.zillizclo
 vectorstore = Milvus(connection_args=connection_args, collection_name=collection_name,embedding_function=embeddings1)
 
 #downloading the model
-'''
+
 url = "https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q5_K_M.gguf"
 output_file = "llama-2-7b-chat.Q5_K_M.gguf"  # The filename you want to save the downloaded file as
 
@@ -223,6 +224,9 @@ else:
       print(f"File downloaded as {output_file}")
   else:
       print("Failed to download the file.")
+
+del response
+
 '''
 inference_server_url = f'https://{["id"]}-80.proxy.runpod.net'
 llm = HuggingFaceTextGenInference(
@@ -235,7 +239,7 @@ llm = HuggingFaceTextGenInference(
     repetition_penalty=1.03,
     streaming = True,
     max_context_length=100
-)
+)'''
 # Defined a QueueCallback, which takes as a Queue object during initialization. Each new token is pushed to the queue.
 class QueueCallback(BaseCallbackHandler):
     """Callback handler for streaming LLM responses to a queue."""
@@ -250,7 +254,7 @@ class QueueCallback(BaseCallbackHandler):
         return self.q.empty()
 
 
-'''
+
 #intialize replicate llm
 llm = LlamaCpp(
         model_path="llama-2-7b-chat.Q5_K_M.gguf",    #  model path
@@ -261,8 +265,7 @@ llm = LlamaCpp(
         streaming=True,
         max_tokens=1024
 
-    )'''
-
+    )
 
 
 def websearch(query):
@@ -319,7 +322,6 @@ def get_prompt(instruction, new_system_prompt=DEFAULT_SYSTEM_PROMPT_replicate ):
     SYSTEM_PROMPT = B_SYS + new_system_prompt + E_SYS
     prompt_template =  B_INST + SYSTEM_PROMPT + instruction + E_INST
     return prompt_template
-
 
 
 
@@ -412,18 +414,18 @@ def chat():
     if docs!='there is no information in context':
        # Prompt
         template = """Use the following pieces of  knowledge to answer the question . user question and knowledge will have tagged with emotions square brackets.
-        you have understand user emotion and knowledge emotion then provide answer based on user emotion.
-.       If you not find any relevant infromation from  knowledge .you have to ask fallow up question to user for getting more context.
-        keep the answer as concise as possible.Please ensure that your responses are socially unbiased and positive in nature.don't mention your emotion tags in final answer.
+you have understand user emotion and knowledge emotion then provide answer based on user emotion. and don't mention whats your emotion in final output.
+If you not find any relevant infromation from  knowledge .you have to ask fallow up question to user for getting more context.
+keep the answer as concise as possible.Please ensure that your responses are socially unbiased and positive in nature.don't mention your emotion tags in final answer.
 
 
-        Question: {question}
+Question: {question}
 
-        emotion: {emotion}
+emotion: {emotion}
 
-        knowledge: {context}
+knowledge: {context}
 
-        Answer:"""
+Answer:"""
         template_replicate = get_prompt(template,DEFAULT_SYSTEM_PROMPT_replicate)
         QA_CHAIN_PROMPT = PromptTemplate(
             input_variables=["context" ,"question","emotion"],
@@ -435,17 +437,17 @@ def chat():
         DEFAULT_SYSTEM_PROMPT_LLM = """
         """
         template = """
-        You are sales person , you have to sound like sales person.your answer sounds like sales person giving answer.
-        if user query required real time data to answer give ouput as i dont have access of real time data .
-        user query tagged with emotion you have to understand user emotion then provide answer based on user emotion.
-        you have to think and provide answer with user emotion .keep the answer as concise as possible.Please ensure that your responses are socially unbiased and positive in nature.don't mention your emotion tags in final answer.
+You are sales person , you have to sound like sales person.your answer sounds like sales person giving answer.
+if user query required real time data to answer give output as i don't have access of real time data . and don't mention whats your emotion in final output.
+user query tagged with emotion you have to understand user emotion then provide answer based on user emotion. and don't mention whats your emotion in final output.
+you have to think and provide answer with user emotion .keep the answer as concise as possible.Please ensure that your responses are socially unbiased and positive in nature.don't mention your emotion tags in final answer.
 
-        query: {question}
+query: {question}
 
-        emotion: {emotion}
+emotion: {emotion}
 
-        answer:
-        """
+answer:
+"""
         template_replicate = get_prompt(template,DEFAULT_SYSTEM_PROMPT_LLM)
         QA_CHAIN_PROMPT = PromptTemplate(
             input_variables=["question","emotion"],
@@ -466,16 +468,16 @@ def chat():
             return Response( stream1(), mimetype= 'text/event-stream' )
         else:
             template = """Use the following pieces of context to answer the question . user question and knowledge will have tagged with emotions in square brackets.
-            you have understand user emotion and knowledge emotion then provide answer based on user emotion.
-            you have to summarise the context remove the unclear context first then answer user query. you need to provide correct answer. you can use your knowledge also for providing answer
-            you have to think and provide answer .keep the answer as concise as possible.Please ensure that your responses are socially unbiased and positive in nature.don't mention your emotion tags in final answer.
+you have understand user emotion and knowledge emotion then provide answer based on user emotion. and don't mention whats your emotion in final output.
+you have to summarise the context remove the unclear context first then answer user query. you need to provide correct answer. you can use your knowledge also for providing answer
+you have to think and provide answer .keep the answer as concise as possible.Please ensure that your responses are socially unbiased and positive in nature.don't mention your emotion tags in final answer.
 
-            Question: {question}
+Question: {question}
 
-            emotion: {emotion}
+emotion: {emotion}
 
-            context: {context}
-            Answer:"""
+context: {context}
+Answer:"""
             template_replicate = get_prompt(template,DEFAULT_SYSTEM_PROMPT_replicate)
             QA_CHAIN_PROMPT = PromptTemplate(
                 input_variables=["context", "question","emotion"],
@@ -489,37 +491,42 @@ def chat():
 @app.route('/audio',methods=['POST'])
 def audio():
     audio_file = request.files['audio']
+    
     # Read the audio file using pydub
     #audio = AudioSegment.from_file(audio_file)
+    text = model_whisper.transcribe(audio_file)
+    #printing the transcribe
 
-    #query = model.transcribe(audio)
-    result = pipe(audio_file)
     #print("Detected language '%s' with probability %f" % (info.language, info.language_probability))
-    query = result['text']
+    query = text['text']
+    #query = model.transcribe(audio)
+    #result = pipe(audio_file)
+    #print("Detected language '%s' with probability %f" % (info.language, info.language_probability))
+    #query = result['text']
     dataset = map_to_array(audio_file)
     inputs = feature_extractor(dataset["speech"], sampling_rate=16000, padding=True, return_tensors="pt")
 
-    logits = model(**inputs).logits
+    logits = model_audio_emotion(**inputs).logits
     predicted_ids = torch.argmax(logits, dim=-1)
-    labels = [model.config.id2label[_id] for _id in predicted_ids.tolist()]
+    labels = [model_audio_emotion.config.id2label[_id] for _id in predicted_ids.tolist()]
 
     emotion=labels
     docs = vectorsearch(query)
     if docs!='there is no information in context':
        # Prompt
         template = """Use the following pieces of  knowledge to answer the question . user question and knowledge will have tagged with emotions square brackets.
-        you have understand user emotion and knowledge emotion then provide answer based on user emotion.
-.       If you not find any relevant infromation from  knowledge .you have to ask fallow up question to user for getting more context.
-        keep the answer as concise as possible.Please ensure that your responses are socially unbiased and positive in nature.don't mention your emotion tags in final answer.
+you have understand user emotion and knowledge emotion then provide answer based on user emotion.and don't mention whats your emotion in final output.
+If you not find any relevant infromation from  knowledge .you have to ask fallow up question to user for getting more context.
+keep the answer as concise as possible.Please ensure that your responses are socially unbiased and positive in nature.don't mention your emotion tags in final answer.
 
 
-        Question: {question}
+Question: {question}
 
-        emotion: {emotion}
+emotion: {emotion}
 
-        knowledge: {context}
+knowledge: {context}
 
-        Answer:"""
+Answer:"""
         template_replicate = get_prompt(template,DEFAULT_SYSTEM_PROMPT_replicate)
         QA_CHAIN_PROMPT = PromptTemplate(
             input_variables=["context" ,"question","emotion"],
@@ -531,17 +538,17 @@ def audio():
         DEFAULT_SYSTEM_PROMPT_LLM = """
         """
         template = """
-        You are sales person , you have to sound like sales person.your answer sounds like sales person giving answer.
-        if user query required real time data to answer give ouput as i dont have access of real time data .
-        user query tagged with emotion you have to understand user emotion then provide answer based on user emotion.
-        you have to think and provide answer with user emotion .keep the answer as concise as possible.Please ensure that your responses are socially unbiased and positive in nature.don't mention your emotion tags in final answer.
+You are sales person , you have to sound like sales person.your answer sounds like sales person giving answer.
+if user query required real time data to answer give ouput as i dont have access of real time data . and don't mention whats your emotion in final output.
+user query tagged with emotion you have to understand user emotion then provide answer based on user emotion.
+you have to think and provide answer with user emotion .keep the answer as concise as possible.Please ensure that your responses are socially unbiased and positive in nature.don't mention your emotion tags in final answer.
 
-        query: {question}
+query: {question}
 
-        emotion: {emotion}
+emotion: {emotion}
 
-        answer:
-        """
+answer:
+"""
         template_replicate = get_prompt(template,DEFAULT_SYSTEM_PROMPT_LLM)
         QA_CHAIN_PROMPT = PromptTemplate(
             input_variables=["question","emotion"],
@@ -562,16 +569,16 @@ def audio():
             return Response( stream1(), mimetype= 'text/event-stream' )
         else:
             template = """Use the following pieces of context to answer the question . user question and knowledge will have tagged with emotions in square brackets.
-            you have understand user emotion and knowledge emotion then provide answer based on user emotion.
-            you have to summarise the context remove the unclear context first then answer user query. you need to provide correct answer. you can use your knowledge also for providing answer
-            you have to think and provide answer .keep the answer as concise as possible.Please ensure that your responses are socially unbiased and positive in nature.don't mention your emotion tags in final answer.
+you have understand user emotion and knowledge emotion then provide answer based on user emotion. and don't mention whats your emotion in final output.
+you have to summarise the context remove the unclear context first then answer user query. you need to provide correct answer. you can use your knowledge also for providing answer
+you have to think and provide answer .keep the answer as concise as possible.Please ensure that your responses are socially unbiased and positive in nature.don't mention your emotion tags in final answer.
 
-            Question: {question}
+Question: {question}
 
-            emotion: {emotion}
+emotion: {emotion}
 
-            context: {context}
-            Answer:"""
+context: {context}
+Answer:"""
             template_replicate = get_prompt(template,DEFAULT_SYSTEM_PROMPT_replicate)
             QA_CHAIN_PROMPT = PromptTemplate(
                 input_variables=["context", "question","emotion"],
@@ -586,11 +593,12 @@ def audio_file():
     audio_file = request.files['audio']
     #query = request.args.get('query')
 
-    result = pipe(audio_file)
+    #audio = AudioSegment.from_file(audio_file)
+    text = model_whisper.transcribe(audio_file)
+    #printing the transcribe
 
     #print("Detected language '%s' with probability %f" % (info.language, info.language_probability))
-    query = result['text']
-
+    query = text['text']
 
     encoder = tiktoken.get_encoding("cl100k_base")
 
@@ -633,10 +641,10 @@ def audio_file():
 
 
 @app.route('/file',methods=['POST'])
-def file():
+def file1():
     file = request.files['file']
     #query = request.args.get('query')
-    if '.pdf' in file:
+    if '.pdf' in file.name.lower():
         file.save('input.pdf')
         #pdfreader = PdfReader(r'C:\Users\Manoj.Patil\Documents\GitHub\emotion-detection-from-text-python\sample_data\leph101.pdf')
         pdfreader=PdfReader('input.pdf')
@@ -645,7 +653,7 @@ def file():
             content = page.extract_text()
             if content:
                 raw_text+=content
-    if '.txt' in file:
+    if '.txt' in file.name.lower():
         file.save('input.txt')
         with open('input.txt', 'r') as file:
             file_content = file.read()
@@ -707,14 +715,12 @@ def image():
 
 
 device = 0 if torch.cuda.is_available() else -1 
-emotion = pipeline('sentiment-analysis', model='arpanghoshal/EmoRoBERTa',device=device)
-model_kwargs = {'device': 'cuda'}
+
 
 nlp = spacy.load("en_core_web_sm")
 model = SentenceTransformer('all-mpnet-base-v2')
 from langchain.embeddings import HuggingFaceEmbeddings
 
-embeddings1 = HuggingFaceEmbeddings(model_name='sentence-transformers/all-mpnet-base-v2',model_kwargs=model_kwargs)
 def textfile(file_path):
     try:
         with open(file_path, 'r') as file:
@@ -764,58 +770,6 @@ def activate_similarities(similarities:np.array, p_size=10)->np.array:
         activated_similarities = np.sum(diagonals, axis=0)
         return activated_similarities
 
-
-nlp = spacy.load("en_core_web_sm")
-model = SentenceTransformer('all-mpnet-base-v2')
-
-def textfile(file_path):
-    try:
-        with open(file_path, 'r') as file:
-            file_content = file.read()
-            print(file_content)
-        return str(file_content)
-    except FileNotFoundError:
-        print(f"File not found: {file_path}")
-    except Exception as e:
-        print(f"An error occurred: {e}")
-
-def pdffile(file_path):
-    pdfreader = PdfReader(file_path)
-    raw_text = ''
-    for i, page in enumerate(pdfreader.pages):
-        content = page.extract_text()
-        if content:
-            raw_text+=str(content)
-    return raw_text
-
-def rev_sigmoid(x:float)->float:
-    return (1 / (1 + math.exp(0.5*x)))
-
-def activate_similarities(similarities:np.array, p_size=10)->np.array:
-        """ Function returns list of weighted sums of activated sentence similarities
-        Args:
-            similarities (numpy array): it should square matrix where each sentence corresponds to another with cosine similarity
-            p_size (int): number of sentences are used to calculate weighted sum
-        Returns:
-            list: list of weighted sums
-        """
-        # To create weights for sigmoid function we first have to create space. P_size will determine number of sentences used and the size of weights vector.
-        x = np.linspace(-10,10,p_size)
-        # Then we need to apply activation function to the created space
-        y = np.vectorize(rev_sigmoid)
-        # Because we only apply activation to p_size number of sentences we have to add zeros to neglect the effect of every additional sentence and to match the length ofvector we will multiply
-        activation_weights = np.pad(y(x),(0,similarities.shape[0]-p_size))
-        ### 1. Take each diagonal to the right of the main diagonal
-        diagonals = [similarities.diagonal(each) for each in range(0,similarities.shape[0])]
-        ### 2. Pad each diagonal by zeros at the end. Because each diagonal is different length we should pad it with zeros at the end
-        diagonals = [np.pad(each, (0,similarities.shape[0]-len(each))) for each in diagonals]
-        ### 3. Stack those diagonals into new matrix
-        diagonals = np.stack(diagonals)
-        ### 4. Apply activation weights to each row. Multiply similarities with our activation.
-        diagonals = diagonals * activation_weights.reshape(-1,1)
-        ### 5. Calculate the weighted sum of activated similarities
-        activated_similarities = np.sum(diagonals, axis=0)
-        return activated_similarities
 
 harm_dict={}
 
@@ -1022,3 +976,4 @@ def feedback():
 if __name__ == '__main__':
     app.debug = True
     app.run(port=80)
+
