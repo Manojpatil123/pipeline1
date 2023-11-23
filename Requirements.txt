@@ -4,7 +4,8 @@ pymongo
 PyPDF2
 duckduckgo-search
 uvicorn
-fastapi
+flask
+pydantic==1.10.9
 langchain==0.0.268
 llama-index==0.8.22
 llama-cpp-python==0.1.78
@@ -23,7 +24,9 @@ pysbd
 gtts
 faster_whisper
 tiktoken
-flash-attn
+#flash-attn
 text-generation
 git+https://github.com/runpod/runpod-python.git
 gunicorn
+gradio==3.35.2
+pydantic==1.10.9
