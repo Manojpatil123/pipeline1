@@ -257,7 +257,7 @@ class QueueCallback(BaseCallbackHandler):
 
 #intialize replicate llm
 llm = LlamaCpp(
-        model_path="llama-2-7b-chat.Q5_K_M.gguf",    #  model path
+        model_path=BASE_DIR+"/llama-2-7b-chat.Q5_K_M.gguf",    #  model path
         verbose=True,
         n_gpu_layers=40,
         n_batch=512,
@@ -705,8 +705,8 @@ def image():
     image = Image.fromarray(np.uint8(image))
 
 # Save the image to a file (e.g., 'saved_image.jpg')
-    image.save('saved_image.jpg')
-    image = load_image('saved_image.jpg')
+    image.save(BASE_DIR+'/saved_image.jpg')
+    image = load_image(BASE_DIR+'/saved_image.jpg')
     image.resize((600, 800))
     result = ask_image( image, "Take a look at the image properly and answer. "+str(query), )
     return result
@@ -779,10 +779,10 @@ def upload_files():
     file = request.files['file']
     #file=r'C:\Users\Manoj.Patil\Documents\GitHub\emotion-detection-from-text-python\sample_data\leph101.pdf'
     if '.pdf' in file:
-        file.save('input.pdf')
+        file.save(BASE_DIR+'/input.pdf')
         harmfull_sentence=[]
         #pdfreader = PdfReader(r'C:\Users\Manoj.Patil\Documents\GitHub\emotion-detection-from-text-python\sample_data\leph101.pdf')
-        pdfreader=PdfReader('input.pdf')
+        pdfreader=PdfReader(BASE_DIR+'/input.pdf')
         raw_text = ''
         for i, page in enumerate(pdfreader.pages):
             content = page.extract_text()
@@ -870,9 +870,9 @@ def upload_files():
               return jsonify({'message': 'Successfully stored data to database','name':file.name, 'data': 'No issue'})
 
     if '.txt' in file.name:
-        file.save('input.txt')
+        file.save(BASE_DIR+'/input.txt')
         try:
-            with open('input.txt', 'r') as file:
+            with open(BASE_DIR+'/input.txt', 'r') as file:
                file_content = file.read()
           
             harmfull_sentence=[]
@@ -976,4 +976,3 @@ def feedback():
 if __name__ == '__main__':
     app.debug = True
     app.run(port=80)
-
