@@ -161,7 +161,7 @@ def ask_image(image: Image, prompt: str):
 
 #intialize web search wrapper
 search = DuckDuckGoSearchRun()
-search1 = SerpAPIWrapper(serpapi_api_key='6b15f6f86cb16bd8bda90a913dd97f573c56d5c82ab3a0f8e41366b1a63a8f0b')
+search1 = SerpAPIWrapper(serpapi_api_key='')
 model_kwargs = {'device': 'cuda'}
 #intialize emebding model
 embeddings1 = HuggingFaceEmbeddings(model_name='sentence-transformers/all-mpnet-base-v2',model_kwargs=model_kwargs)
@@ -205,7 +205,7 @@ feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained("superb/wav2vec2-ba
 
 #milvus database connection
 collection_name = 'LangChainCollection'
-connection_args={"uri": "https://in03-6bcf3c6994e6be0.api.gcp-us-west1.zillizcloud.com",'token':'96a0af8f0d052713f9ebb52f44660ad8661331a26e30e9371e821522b717141f3e3a371f3158bdbcef3516e23f3d27307ce615d5'}
+connection_args={"uri": "",'token':''}
 vectorstore = Milvus(connection_args=connection_args, collection_name=collection_name,embedding_function=embeddings1)
 
 #downloading the model
